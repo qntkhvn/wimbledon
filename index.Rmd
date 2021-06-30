@@ -1,0 +1,161 @@
+---
+title: "Wimbledon"
+output:
+  html_document:
+    code_folding: hide
+---
+
+# Scraping
+
+```{r, message=FALSE}
+library(tidyverse)
+library(rvest)
+library(ggdark)
+
+get_wimbledon <- function(year, gender) {
+  url <- paste0("https://en.wikipedia.org/wiki/", 
+                year,
+                "_Wimbledon_Championships_-_",
+                gender,
+                "'s_Singles")
+  
+  info <- read_html(url) %>%
+    html_text() %>%
+    str_replace_all("\\)", "\\)\n") %>%
+    read_lines()
+  
+  result <- tibble(info) %>%
+    filter(str_detect(info, "^[0-9]{2}\\.")) %>%
+    mutate(info = str_squish(info),
+           year = year,
+           gender = gender)
+}
+
+mens <- tibble()
+for (year in 2001:2019) {
+  mens <- mens %>% 
+    bind_rows(get_wimbledon(year, "Men"))
+}
+
+womens <- tibble()
+for (year in 2001:2019) {
+  womens <- womens %>% 
+    bind_rows(get_wimbledon(year, "Women"))
+}
+
+wimbledon <- mens %>% 
+  bind_rows(womens)
+```
+
+# Plotting
+
+```{r, message=FALSE, fig.height=6, fig.width=9}
+p1 <- wimbledon %>%
+  filter(gender == "Women") %>% 
+  mutate(
+    seed = as.numeric(str_remove(info, "\\..*")),
+    name = str_sub(info,
+                   str_locate(info, "\\.")[, 1] + 1,
+                   str_locate(info, "\\(")[, 1] - 1),
+    result = case_when(
+      str_detect(info, "Champion") ~ "W",
+      str_detect(info, "Final") ~ "F",
+      str_detect(info, "Semifinal") ~ "SF",
+      str_detect(info, "Quarterfinal") ~ "QF",
+      str_detect(info, "Fourth") ~ "4R",
+      str_detect(info, "Third") ~ "3R",
+      str_detect(info, "Second") ~ "2R",
+      str_detect(info, "First") ~ "1R",
+      str_detect(info, "Withdrew") ~ "WD",
+      TRUE ~ as.character(info),
+    ),
+    result = factor(result,
+                    levels = c("WD", "1R", "2R", "3R", "4R", "QF", "SF", "F", "W"))
+  ) %>% 
+  ggplot(aes(x = seed, y = year, fill = result, group = name)) +
+  geom_tile(color = "white") +
+  scale_y_continuous(breaks = 2001:2019) +
+  scale_x_continuous(breaks = 1:34, position = "top") +
+  scale_fill_brewer(palette = "PRGn") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
+    plot.caption = element_text(hjust = 0.5, face = "italic"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank(),
+    legend.title = element_blank(),
+    legend.position = "bottom",
+    legend.margin = margin(-10, 15, 5, 0),
+    legend.key.size = unit(0.4, "cm"),
+    axis.text.y = element_text(margin = margin(0, -20, 0, 0)),
+    axis.text.x.top = element_text(margin = margin(0, 0, -9, 0))
+  ) +
+  guides(fill = guide_legend(nrow = 1)) + 
+  labs(
+    x = "",
+    y = "",
+    title = "\nWimbledon Women's Seedings and Performances",
+    subtitle = "(since seedings increased to 32 in 2001)",
+    caption = "*Seeds higher than 32 were given to replacements when seeded players withdrew after the draw has been made"
+  )
+p1
+
+p2 <- wimbledon %>%
+  filter(gender == "Men") %>% 
+  mutate(
+    seed = as.numeric(str_remove(info, "\\..*")),
+    name = str_sub(info,
+                   str_locate(info, "\\.")[, 1] + 1,
+                   str_locate(info, "\\(")[, 1] - 1),
+    result = case_when(
+      str_detect(info, "Champion") ~ "W",
+      str_detect(info, "Final") ~ "F",
+      str_detect(info, "Semifinal") ~ "SF",
+      str_detect(info, "Quarterfinal") ~ "QF",
+      str_detect(info, "Fourth") ~ "4R",
+      str_detect(info, "Third") ~ "3R",
+      str_detect(info, "Second") ~ "2R",
+      str_detect(info, "First") ~ "1R",
+      str_detect(info, "Withdrew") ~ "WD",
+      TRUE ~ as.character(info),
+    ),
+    result = factor(result,
+                    levels = c("WD", "1R", "2R", "3R", "4R", "QF", "SF", "F", "W"))
+  ) %>% 
+  ggplot(aes(x = seed, y = year, fill = result, group = name)) +
+  geom_tile(color = "white") +
+  scale_y_continuous(breaks = 2001:2019) +
+  scale_x_continuous(breaks = 1:35, position = "top") +
+  scale_fill_brewer(palette = "PRGn") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
+    plot.caption = element_text(hjust = 0.5, face = "italic"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank(),
+    legend.title = element_blank(),
+    legend.position = "bottom",
+    legend.margin = margin(-10, 15, 5, 0),
+    legend.key.size = unit(0.4, "cm"),
+    axis.text.y = element_text(margin = margin(0, -20, 0, 0)),
+    axis.text.x.top = element_text(margin = margin(0, 0, -9, 0))
+  ) +
+  guides(fill = guide_legend(nrow = 1)) + 
+  labs(
+    x = "",
+    y = "",
+    title = "\nWimbledon Men's Seedings and Performances",
+    subtitle = "(since seedings increased to 32 in 2001)",
+    caption = "*Seeds higher than 32 were given to replacements when seeded players withdrew after the draw has been made"
+  )
+p2
+```
+
+```{r, message=FALSE, fig.height=6, fig.width=10}
+library(plotly)
+ggplotly(p1) %>% layout(showlegend = FALSE)
+ggplotly(p2) %>% layout(showlegend = FALSE)
+```
+
