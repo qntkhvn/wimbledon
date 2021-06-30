@@ -10,7 +10,6 @@ output:
 ```{r, message=FALSE}
 library(tidyverse)
 library(rvest)
-library(ggdark)
 
 get_wimbledon <- function(year, gender) {
   url <- paste0("https://en.wikipedia.org/wiki/", 
@@ -44,14 +43,7 @@ for (year in 2001:2019) {
 }
 
 wimbledon <- mens %>% 
-  bind_rows(womens)
-```
-
-# Plotting
-
-```{r, message=FALSE, fig.height=6, fig.width=9}
-p1 <- wimbledon %>%
-  filter(gender == "Women") %>% 
+  bind_rows(womens) %>% 
   mutate(
     seed = as.numeric(str_remove(info, "\\..*")),
     name = str_sub(info,
@@ -71,7 +63,14 @@ p1 <- wimbledon %>%
     ),
     result = factor(result,
                     levels = c("WD", "1R", "2R", "3R", "4R", "QF", "SF", "F", "W"))
-  ) %>% 
+  )
+```
+
+# Plotting
+
+```{r, message=FALSE, fig.height=6, fig.width=9}
+p1 <- wimbledon %>%
+  filter(gender == "Women") %>% 
   ggplot(aes(x = seed, y = year, fill = result, group = name)) +
   geom_tile(color = "white") +
   scale_y_continuous(breaks = 2001:2019) +
@@ -103,26 +102,6 @@ p1
 
 p2 <- wimbledon %>%
   filter(gender == "Men") %>% 
-  mutate(
-    seed = as.numeric(str_remove(info, "\\..*")),
-    name = str_sub(info,
-                   str_locate(info, "\\.")[, 1] + 1,
-                   str_locate(info, "\\(")[, 1] - 1),
-    result = case_when(
-      str_detect(info, "Champion") ~ "W",
-      str_detect(info, "Final") ~ "F",
-      str_detect(info, "Semifinal") ~ "SF",
-      str_detect(info, "Quarterfinal") ~ "QF",
-      str_detect(info, "Fourth") ~ "4R",
-      str_detect(info, "Third") ~ "3R",
-      str_detect(info, "Second") ~ "2R",
-      str_detect(info, "First") ~ "1R",
-      str_detect(info, "Withdrew") ~ "WD",
-      TRUE ~ as.character(info),
-    ),
-    result = factor(result,
-                    levels = c("WD", "1R", "2R", "3R", "4R", "QF", "SF", "F", "W"))
-  ) %>% 
   ggplot(aes(x = seed, y = year, fill = result, group = name)) +
   geom_tile(color = "white") +
   scale_y_continuous(breaks = 2001:2019) +
